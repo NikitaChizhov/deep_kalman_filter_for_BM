@@ -13,38 +13,49 @@ def apply_noise(img, bit_flip_ratio):
     img[mask] = 255 - img[mask]
     return img
 
-def get_rotations(img, rotation_step, rotation_count):
-    for i in range(rotation_count):
+def get_rotations(img, rotation_steps):
+    for rot in rotation_steps:
+        img = scipy.ndimage.rotate(img, rot, reshape=False)
         yield img
-        img = scipy.ndimage.rotate(img, rotation_step, reshape=False)
 
 def binarize(img):
     return img > 127
 
-def heal_mnist(images, seq_len, rotation_step, square_count, square_size, noise_ratio):
-    for img in images:
-        squares_begin = np.random.randint(0, seq_len - square_count)
-        squares_end = squares_begin + square_count
+def heal_image(img, seq_len, square_count, square_size, noise_ratio):
+    squares_begin = np.random.randint(0, seq_len - square_count)
+    squares_end = squares_begin + square_count
 
-        rotations = []
+    rotations = []
+    rotation_steps = np.random.random(size=seq_len) * 180 - 90
 
-        for idx, rotation in enumerate(get_rotations(img, rotation_step, seq_len)):
-            if idx >= squares_begin and idx < squares_end:
-                rotation = apply_square(rotation, square_size)
-            rotations.append(binarize(apply_noise(rotation, noise_ratio)))
+    for idx, rotation in enumerate(get_rotations(img, rotation_steps)):
+        if idx >= squares_begin and idx < squares_end:
+            rotation = apply_square(rotation, square_size)
+        rotations.append(binarize(apply_noise(rotation, noise_ratio)))
 
-        yield rotations
+    return rotations, rotation_steps
 
-def train_images(seq_len=5, rotation_step=15, square_count=3, square_size=5, noise_ratio=0.15):
-    return np.array(list(heal_mnist(mnist.train_images(), seq_len=seq_len, 
-                                                     rotation_step=rotation_step,
-                                                     square_count = square_count,
-                                                     square_size = square_size,
-                                                     noise_ratio = noise_ratio)))
+class HealingMNIST():
+    def __init__(self, seq_len=5, square_count=3, square_size=5, noise_ratio=0.15):
+        mnist_train = mnist.train_images()
+        mnist_test = mnist.test_images()
 
-def test_images(seq_len=5, rotation_step=15, square_count=3, square_size=5, noise_ratio=0.15):
-    return np.array(list(heal_mnist(mnist.test_images(),  seq_len=seq_len, 
-                                                     rotation_step=rotation_step,
-                                                     square_count = square_count,
-                                                     square_size = square_size,
-                                                     noise_ratio = noise_ratio)))
+        train_images = []
+        test_images = []
+        train_rotations = []
+        test_rotations = []
+
+        for img in mnist_train:
+            train_img, train_rot = heal_image(img, seq_len, square_count, square_size, noise_ratio)
+            train_images.append(train_img)
+            train_rotations.append(train_rot)
+
+        for img in mnist_test:
+            test_img, test_rot = heal_image(img, seq_len, square_count, square_size, noise_ratio)
+            test_images.append(test_img)
+            test_rotations.append(test_rot)
+        
+        self.train_images = np.array(train_images)
+        self.test_images = np.array(test_images)
+        self.train_rotations = np.array(train_rotations)
+        self.test_rotations = np.array(test_rotations)
