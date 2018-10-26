@@ -36,9 +36,9 @@ def heal_image(img, seq_len, square_count, square_size, noise_ratio):
     return rotations, rotation_steps
 
 class HealingMNIST():
-    def __init__(self, seq_len=5, square_count=3, square_size=5, noise_ratio=0.15):
-        mnist_train = mnist.train_images()
-        mnist_test = mnist.test_images()
+    def __init__(self, seq_len=5, square_count=3, square_size=5, noise_ratio=0.15, digits=range(10)):
+        mnist_train = [img for img, label in zip(mnist.train_images(), mnist.train_labels()) if label in digits]
+        mnist_test = [img for img, label in zip(mnist.test_images(), mnist.test_labels()) if label in digits]
 
         train_images = []
         test_images = []
